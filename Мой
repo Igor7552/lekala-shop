@@ -1,0 +1,94 @@
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useState, createContext, useContext } from "react";
+import { BrowserRouter as Router, Routes, Route, Link, useParams, Navigate } from "react-router-dom";
+
+// Simple Auth Context
+const AuthContext = createContext();
+function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const login = (email, password) => setUser({ email });
+  const signup = (email, password) => setUser({ email });
+  const logout = () => setUser(null);
+  return (
+    <AuthContext.Provider value={{ user, login, signup, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+function useAuth() { return useContext(AuthContext); }
+
+// Mock products and orders
+const products = [ /* same array as before */ ];
+let orders = [];
+
+// Components
+function HomePage() { /* unchanged */ }
+function ProductPage() { /* unchanged */ }
+function CartPage() { /* unchanged */ }
+function CheckoutPage() {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" />;
+  const handlePayment = () => {
+    // placeholder for Stripe integration
+    orders.push({ user: user.email, items: JSON.parse(localStorage.getItem('cart')) });
+    localStorage.removeItem('cart');
+    alert('Заказ оформлен!');
+  };
+  return (
+    <div> {/* form as before */}
+      <Button onClick={handlePayment}>Оплатить</Button>
+    </div>
+  );
+}
+
+function LoginPage() {
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [pass, setPass] = useState('');
+  return (<div> /* inputs */ <Button onClick={() => login(email,pass)}>Войти</Button></div>);
+}
+function SignupPage() { /* similar to Login */ }
+function ProfilePage() {
+  const { user, logout } = useAuth();
+  if (!user) return <Navigate to="/login" />;
+  return (<div>Привет, {user.email}! <Button onClick={logout}>Выйти</Button></div>);
+}
+function AdminPage() {
+  const { user } = useAuth();
+  if (!user || user.email !== 'admin@example.com') return <Navigate to="/" />;
+  return (
+    <div>
+      <h1>Панель администратора</h1>
+      <h2>Товары</h2><pre>{JSON.stringify(products, null, 2)}</pre>
+      <h2>Заказы</h2><pre>{JSON.stringify(orders, null, 2)}</pre>
+    </div>
+  );
+}
+
+export default function App() {
+  // persist cart
+  const [cartItems, setCartItems] = useState(JSON.parse(localStorage.getItem('cart')) || []);
+  const addToCart = p => {
+    const next = [...cartItems, p]; setCartItems(next); localStorage.setItem('cart', JSON.stringify(next));
+  };
+  const removeFromCart = i => { /* same */ };
+  return (
+    <AuthProvider>
+      <Router>
+        <nav> /* links including login/signup/profile/admin */ </nav>
+        <Routes>
+          <Route path="/" element={<HomePage addToCart={addToCart} />} />
+          <Route path="/product/:id" element={<ProductPage addToCart={addToCart} />} />
+          <Route path="/cart" element={<CartPage cartItems={cartItems} removeFromCart={removeFromCart} />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/admin" element={<AdminPage />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
+  );
+}
